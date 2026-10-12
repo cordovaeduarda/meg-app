@@ -1,9 +1,12 @@
 import { PawPrint } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
 import { cn } from '@/lib/utils'
+import { usePet } from '@/lib/pet-context'
 import { navItems } from './nav-items'
 
 function AppLayout() {
+  const pet = usePet()
+
   return (
     <div className="min-h-dvh md:flex">
       {/* Desktop: sidebar on the left (hidden below the md breakpoint) */}
@@ -12,7 +15,7 @@ function AppLayout() {
           <div className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <PawPrint className="size-4" />
           </div>
-          <span className="font-semibold">Meg</span>
+          <span className="font-semibold">{pet.name}</span>
         </div>
         <nav className="flex flex-col gap-1">
           {navItems.map(({ to, label, icon: Icon }) => (
@@ -41,7 +44,7 @@ function AppLayout() {
 
       {/* Mobile: tab bar fixed to the bottom (hidden from md up) */}
       <nav className="fixed inset-x-0 bottom-0 border-t bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4">
+        <div className="mx-auto grid max-w-md grid-cols-5">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

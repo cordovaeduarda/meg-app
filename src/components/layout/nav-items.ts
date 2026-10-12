@@ -1,4 +1,4 @@
-import { House, NotebookPen, Pill, Wallet } from 'lucide-react'
+import { House, NotebookPen, Pill, Settings, Wallet } from 'lucide-react'
 
 // One list drives both the desktop sidebar and the mobile tab bar
 export const navItems = [
@@ -6,4 +6,5 @@ export const navItems = [
   { to: '/meds', label: 'Meds', icon: Pill },
   { to: '/log', label: 'Log', icon: NotebookPen },
   { to: '/expenses', label: 'Expenses', icon: Wallet },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ]

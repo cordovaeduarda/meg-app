@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -223,6 +223,67 @@ export type Database = {
           },
         ]
       }
+      pet_invitations: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          pet_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          pet_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          pet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_invitations_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pet_members: {
+        Row: {
+          created_at: string
+          pet_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          pet_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          pet_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_members_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pets: {
         Row: {
           birth_date: string | null
@@ -252,7 +313,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_pending_invitations: { Args: never; Returns: number }
+      create_pet: {
+        Args: { p_birth_date?: string; p_breed?: string; p_name: string }
+        Returns: string
+      }
+      list_pet_members: {
+        Args: { p_pet_id: string }
+        Returns: {
+          email: string
+          is_me: boolean
+          role: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

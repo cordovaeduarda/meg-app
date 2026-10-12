@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pill, Plus, Wallet } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
+import { usePet } from '@/lib/pet-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,6 +24,7 @@ const medications = [
 ]
 
 function TodayPage() {
+  const pet = usePet()
   const [givenIds, setGivenIds] = useState<number[]>([])
 
   function toggleDose(id: number) {
@@ -42,7 +44,7 @@ function TodayPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow={today} title="Meg's day" />
+      <PageHeader eyebrow={today} title={`${pet.name}'s day`} />
 
       <section className="grid grid-cols-2 gap-3">
         <Card>
