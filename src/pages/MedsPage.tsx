@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pill } from 'lucide-react'
+import { Pill, Plus } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -12,6 +12,9 @@ import {
 import type { Tables } from '@/lib/database.types'
 import { usePet } from '@/lib/pet-context'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
+import AddMedicationForm from '@/components/meds/AddMedicationForm'
+import ResponsiveDialog from '@/components/ResponsiveDialog'
 
 // One medication row, plus the list of its schedule rows attached
 type MedicationWithSchedules = Tables<'medications'> & {
@@ -23,6 +26,7 @@ function MedsPage() {
   // null = still loading, [] = loaded but empty
   const [medications, setMedications] = useState<MedicationWithSchedules[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
 
   const loadMedications = useCallback(async () => {
     const { data, error } = await supabase
@@ -44,7 +48,15 @@ function MedsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Schedule" title="Medications" />
+      <PageHeader
+        eyebrow="Schedule"
+        title="Medications"
+        action={
+          <Button onClick={() => setShowForm(true)}>
+            <Plus /> Add
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -103,6 +115,21 @@ function MedsPage() {
           )}
         </CardContent>
       </Card>
+
+      <ResponsiveDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        title="Add a medication"
+        description={`Something new for ${pet.name}? Set the dose and when to give it.`}
+      >
+        <AddMedicationForm
+          onAdded={() => {
+            setShowForm(false)       // close the dialog…
+            void loadMedications()   // …and reload the list so the new one appears
+          }}
+          onCancel={() => setShowForm(false)}
+        />
+      </ResponsiveDialog>
     </div>
   )
 }
