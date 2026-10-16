@@ -187,7 +187,7 @@ export type Database = {
           instructions: string | null
           name: string
           pet_id: string
-          start_date: string | null
+          start_date: string
         }
         Insert: {
           active?: boolean
@@ -199,7 +199,7 @@ export type Database = {
           instructions?: string | null
           name: string
           pet_id: string
-          start_date?: string | null
+          start_date?: string
         }
         Update: {
           active?: boolean
@@ -211,7 +211,7 @@ export type Database = {
           instructions?: string | null
           name?: string
           pet_id?: string
-          start_date?: string | null
+          start_date?: string
         }
         Relationships: [
           {

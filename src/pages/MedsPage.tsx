@@ -9,24 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { Tables } from '@/lib/database.types'
 import { usePet } from '@/lib/pet-context'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import AddMedicationForm from '@/components/meds/AddMedicationForm'
+import MedicationForm from '@/components/meds/MedicationForm'
 import ResponsiveDialog from '@/components/ResponsiveDialog'
-
-// One medication row, plus the list of its schedule rows attached
-type MedicationWithSchedules = Tables<'medications'> & {
-  medication_schedules: Tables<'medication_schedules'>[]
-}
+import type { MedicationWithSchedules } from '@/lib/medications' 
 
 function MedsPage() {
   const pet = usePet()
   // null = still loading, [] = loaded but empty
   const [medications, setMedications] = useState<MedicationWithSchedules[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<MedicationWithSchedules | 'new' | null>(null)
 
   const loadMedications = useCallback(async () => {
     const { data, error } = await supabase
@@ -52,7 +47,7 @@ function MedsPage() {
         eyebrow="Schedule"
         title="Medications"
         action={
-          <Button onClick={() => setShowForm(true)}>
+          <Button onClick={() => setEditing('new')}>
             <Plus /> Add
           </Button>
         }
@@ -78,37 +73,41 @@ function MedsPage() {
           ) : (
             <ul className="flex flex-col divide-y">
               {medications.map((med) => (
-                <li
-                  key={med.id}
-                  className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p>
-                      <span className="font-medium">{med.name}</span>{' '}
-                      {med.dose_amount !== null && (
-                        <span className="text-muted-foreground">
-                          {med.dose_amount} {med.dose_unit}
-                        </span>
-                      )}
-                    </p>
-                    {med.instructions && (
-                      <p className="text-sm text-muted-foreground">
-                        {med.instructions}
+                <li key={med.id} className="py-3 first:pt-0 last:pb-0">
+                  {/* A real button, so the row works with Tab/Enter and screen readers */}
+                  <button
+                    type="button"
+                    onClick={() => setEditing(med)}
+                    className="flex w-full cursor-pointer items-start gap-3 text-left"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p>
+                        <span className="font-medium">{med.name}</span>{' '}
+                        {med.dose_amount !== null && (
+                          <span className="text-muted-foreground">
+                            {med.dose_amount} {med.dose_unit}
+                          </span>
+                        )}
                       </p>
-                    )}
-                  </div>
+                      {med.instructions && (
+                        <p className="text-sm text-muted-foreground">
+                          {med.instructions}
+                        </p>
+                      )}
+                    </div>
 
-                  <div className="flex flex-wrap justify-end gap-1">
-                    {med.medication_schedules.length === 0 ? (
-                      <Badge variant="outline">No time set</Badge>
-                    ) : (
-                      med.medication_schedules.map((schedule) => (
-                        <Badge key={schedule.id} variant="secondary">
-                          {schedule.time_of_day.slice(0, 5)}
-                        </Badge>
-                      ))
-                    )}
-                  </div>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {med.medication_schedules.length === 0 ? (
+                        <Badge variant="outline">No time set</Badge>
+                      ) : (
+                        med.medication_schedules.map((schedule) => (
+                          <Badge key={schedule.id} variant="secondary">
+                            {schedule.time_of_day.slice(0, 5)}
+                          </Badge>
+                        ))
+                      )}
+                    </div>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -117,17 +116,22 @@ function MedsPage() {
       </Card>
 
       <ResponsiveDialog
-        open={showForm}
-        onOpenChange={setShowForm}
-        title="Add a medication"
-        description={`Something new for ${pet.name}? Set the dose and when to give it.`}
+        open={editing !== null}
+        onOpenChange={(open) => { if (!open) setEditing(null)}}
+        title={editing === 'new' ? 'Add a medication' : 'Edit medication'}
+        description={
+          editing === 'new'
+            ? `Something new for ${pet.name}? Set the dose and when to give it.`
+            : 'Change the dose or times, or stop giving it.'
+        }
       >
-        <AddMedicationForm
-          onAdded={() => {
-            setShowForm(false)       // close the dialog…
+        <MedicationForm
+          medication={editing === 'new' ? undefined : editing ?? undefined}
+          onSaved={() => {
+            setEditing(null)       // close the dialog…
             void loadMedications()   // …and reload the list so the new one appears
           }}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => setEditing(null)}
         />
       </ResponsiveDialog>
     </div>

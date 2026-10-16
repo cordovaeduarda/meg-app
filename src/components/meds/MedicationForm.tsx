@@ -3,23 +3,29 @@ import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createMedication } from '@/lib/medications'
+import {
+  createMedication,
+  stopMedication,
+  updateMedication,
+  type MedicationWithSchedules,
+} from '@/lib/medications'
 import { usePet } from '@/lib/pet-context'
 
-type AddMedicationFormProps = {
-  onAdded: () => void
+type MedicationFormProps = {
+  onSaved: () => void
   onCancel: () => void
+  medication?: MedicationWithSchedules //given -> edit mode, missing -> add mode
 }
 
-function AddMedicationForm({ onAdded, onCancel }: AddMedicationFormProps) {
+function MedicationForm({ onSaved, onCancel, medication}: MedicationFormProps) {
   // pet_id doesn't come from a form field, it comes from the current pet
   const pet = usePet()
-  const [name, setName] = useState('')
-  const [doseAmount, setDoseAmount] = useState('')
-  const [doseUnit, setDoseUnit] = useState('')
-  const [instructions, setInstructions] = useState('')
-  const [times, setTimes] = useState<string[]>(['08:00'])
-  const [endDate, setEndDate] = useState('')
+  const [name, setName] = useState(medication?.name ?? '') //if medication was given when calling the function, use its name, if not, starts with empty name
+  const [doseAmount, setDoseAmount] = useState(medication?.dose_amount?.toString() ?? '')
+  const [doseUnit, setDoseUnit] = useState(medication?.dose_unit ?? '')
+  const [instructions, setInstructions] = useState(medication?.instructions ?? '')
+  const [times, setTimes] = useState<string[]>(medication? medication.medication_schedules.map((schedule) => schedule.time_of_day.slice(0, 5)): ['08:00'],)
+  const [endDate, setEndDate] = useState(medication?.end_date ?? '')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -36,24 +42,46 @@ function AddMedicationForm({ onAdded, onCancel }: AddMedicationFormProps) {
     setTimes([...times, ''])
   }
 
-  async function handleAddition(event: FormEvent) {
+  async function handleStop() {
+    // Checks first: returning after setLoading(true) would leave the form stuck on "Saving…"
+    if (!medication) return
+    if (!window.confirm(`Stop giving ${medication.name}? It will be removed from the list, but its history is kept.`)) return
+
+    setError(null)
+    setLoading(true)
+
+    try {
+      await stopMedication(medication.id)
+      onSaved() // MedsPage closes the dialog and reloads the list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not stop the medication')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
     setLoading(true)
 
     try {
-      await createMedication(
-        {
-          pet_id: pet.id,
-          name: name.trim(),
-          dose_amount: doseAmount ? Number(doseAmount) : null,
-          dose_unit: doseUnit.trim() || null,
-          instructions: instructions.trim() || null,
-          end_date: endDate || null,
-        },
-        times.filter((time) => time !== ''), // drop blank time inputs
-      )
-      onAdded() // MedsPage closes the dialog and reloads the list
+      const fields = {
+        name: name.trim(),
+        dose_amount: doseAmount ? Number(doseAmount) : null,
+        dose_unit: doseUnit.trim() || null,
+        instructions: instructions.trim() || null,
+        end_date: endDate || null,
+      }
+
+      const cleanTimes = times.filter((time) => time !== '') // drop blank time inputs
+
+      if (medication) {
+        await updateMedication(medication, fields, cleanTimes)
+      } else {
+        await createMedication({ ...fields, pet_id: pet.id }, cleanTimes)
+      }
+      onSaved() // MedsPage closes the dialog and reloads the list
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the medication')
     } finally {
@@ -62,7 +90,7 @@ function AddMedicationForm({ onAdded, onCancel }: AddMedicationFormProps) {
   }
 
   return (
-    <form onSubmit={handleAddition} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">Name</Label>
         <Input
@@ -149,6 +177,17 @@ function AddMedicationForm({ onAdded, onCancel }: AddMedicationFormProps) {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        {medication && (
+          <Button
+            type="button"
+            variant="destructive"
+            className="sm:mr-auto"
+            disabled={loading}
+            onClick={handleStop}
+          >
+            Stop giving it
+          </Button>
+        )}
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
@@ -160,4 +199,4 @@ function AddMedicationForm({ onAdded, onCancel }: AddMedicationFormProps) {
   )
 }
 
-export default AddMedicationForm
+export default MedicationForm
