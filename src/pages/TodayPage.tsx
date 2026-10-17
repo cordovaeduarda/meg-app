@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Pill, Plus, Wallet } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
 import { usePet } from '@/lib/pet-context'
@@ -14,33 +14,63 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
-
-// Sample data — in step 6 this will come from the database
-const medications = [
-  { id: 1, name: 'Apoquel', dose: '16 mg', time: '08:00' },
-  { id: 2, name: 'Omeprazole', dose: '10 mg', time: '08:00' },
-  { id: 3, name: 'Gabapentin', dose: '100 mg', time: '14:00' },
-  { id: 4, name: 'Apoquel', dose: '16 mg', time: '20:00' },
-]
+import { todayISO } from '@/lib/dates'
+import { loadTodayDoses, markDoseGiven, unmarkDose, type TodayDose } from '@/lib/doses'
+import { errorMessage } from '@/lib/errors'
 
 function TodayPage() {
   const pet = usePet()
-  const [givenIds, setGivenIds] = useState<number[]>([])
+  // null = still loading, [] = loaded but nothing to give today
+  const [doses, setDoses] = useState<TodayDose[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null) // a scheduleId, or null
+  // Kept apart from `error`: a failed tick shows a message but keeps the list visible
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  function toggleDose(id: number) {
-    setGivenIds(
-      givenIds.includes(id)
-        ? givenIds.filter((given) => given !== id)
-        : [...givenIds, id],
-    )
-  }
+  const loadDoses = useCallback(async () => {
+    try {
+      setDoses(await loadTodayDoses(pet.id, todayISO()))
+    } catch (err) {
+      setError(errorMessage(err, 'Could not load doses'))
+    }
+  }, [pet.id])
 
-  const progress = (givenIds.length / medications.length) * 100
+  useEffect(() => {
+    void loadDoses()
+  }, [loadDoses])
+
+  // While loading, count as an empty list so the summary shows 0/0
+  const list = doses ?? []
+  const givenCount = list.filter((dose) => dose.given).length
+  // Guard against 0/0 = NaN when there's nothing to give today
+  const progress = list.length > 0 ? (givenCount / list.length) * 100 : 0
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   })
+
+  async function toggleDose(dose: TodayDose) {
+    // One save at a time: a quick double tap would insert the same dose twice
+    if (savingId !== null) return
+
+    setSavingId(dose.scheduleId)
+    setSaveError(null)
+
+    try {
+      if (dose.given) {
+        await unmarkDose(dose.scheduleId, todayISO())
+      } else {
+        await markDoseGiven(dose.scheduleId, todayISO())
+      }
+      await loadDoses() // refresh, so the boxes show what's really saved
+    } catch (err) {
+      console.error(err)
+      setSaveError(errorMessage(err, 'Could not save the dose'))
+    } finally {
+      setSavingId(null)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,7 +83,7 @@ function TodayPage() {
               Doses today
             </p>
             <p className="text-3xl font-semibold tracking-tight">
-              {givenIds.length}/{medications.length}
+              {givenCount}/{list.length}
             </p>
           </CardContent>
         </Card>
@@ -75,24 +105,44 @@ function TodayPage() {
           <CardDescription>Tap a dose once it's given</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Progress value={progress} />
-          <ul className="flex flex-col gap-3">
-            {medications.map((med) => (
-              <li key={med.id}>
-                <label className="flex items-center gap-3">
-                  <Checkbox
-                    checked={givenIds.includes(med.id)}
-                    onCheckedChange={() => toggleDose(med.id)}
-                  />
-                  <span className="flex-1">
-                    <span className="font-medium">{med.name}</span>{' '}
-                    <span className="text-muted-foreground">{med.dose}</span>
-                  </span>
-                  <Badge variant="secondary">{med.time}</Badge>
-                </label>
-              </li>
-            ))}
-          </ul>
+          {error ? (
+            <p className="text-sm text-destructive">
+              Couldn't load today's doses: {error}
+            </p>
+          ) : doses === null ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : doses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No doses for {pet.name} today.
+            </p>
+          ) : (
+            <>
+              <Progress value={progress} />
+              {saveError && (
+                <p className="text-sm text-destructive">
+                  Couldn't save: {saveError}
+                </p>
+              )}
+              <ul className="flex flex-col gap-3">
+                {doses.map((dose) => (
+                  <li key={dose.scheduleId}>
+                    <label className="flex items-center gap-3">
+                      <Checkbox
+                        checked={dose.given}
+                        disabled={savingId === dose.scheduleId}
+                        onCheckedChange={() => void toggleDose(dose)}
+                      />
+                      <span className="flex-1">
+                        <span className="font-medium">{dose.name}</span>{' '}
+                        <span className="text-muted-foreground">{dose.dose}</span>
+                      </span>
+                      <Badge variant="secondary">{dose.time}</Badge>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -18,10 +18,12 @@ function Progress({
       )}
       {...props}
     >
+      {/* Grows by width instead of sliding with translateX: Chrome sometimes leaves
+          stale pixels when a transformed bar animates inside a rounded, clipped track */}
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className="size-full flex-1 bg-primary transition-all"
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+        className="h-full rounded-full bg-primary transition-[width]"
+        style={{ width: `${value || 0}%` }}
       />
     </ProgressPrimitive.Root>
   )

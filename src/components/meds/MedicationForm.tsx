@@ -9,6 +9,7 @@ import {
   updateMedication,
   type MedicationWithSchedules,
 } from '@/lib/medications'
+import { errorMessage } from '@/lib/errors'
 import { usePet } from '@/lib/pet-context'
 
 type MedicationFormProps = {
@@ -54,7 +55,7 @@ function MedicationForm({ onSaved, onCancel, medication}: MedicationFormProps) {
       await stopMedication(medication.id)
       onSaved() // MedsPage closes the dialog and reloads the list
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not stop the medication')
+      setError(errorMessage(err, 'Could not stop the medication'))
     } finally {
       setLoading(false)
     }
@@ -83,7 +84,7 @@ function MedicationForm({ onSaved, onCancel, medication}: MedicationFormProps) {
       }
       onSaved() // MedsPage closes the dialog and reloads the list
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the medication')
+      setError(errorMessage(err, 'Could not save the medication'))
     } finally {
       setLoading(false)
     }
